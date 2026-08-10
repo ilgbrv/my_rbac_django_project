@@ -20,6 +20,13 @@ class RegisterSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         validated_data.pop('password_confirm', None)
-        return CustomUser.objects.create_user(**validated_data)
+        password = validated_data.pop('password', None)
+        email = validated_data.pop('email')
+
+        return CustomUser.objects.create_user(
+            email=email, 
+            password=password, 
+            **validated_data
+        )
         
     
