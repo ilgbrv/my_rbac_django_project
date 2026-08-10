@@ -1,29 +1,29 @@
+import bcrypt
 from django.db import models
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager
 
 
-class Action(models.Model):
-    action_name = models.CharField(max_length=50, unique=True)
-    def __str__(self):
-        return self.action_name
-
-class Resource(models.Model):
-    resource_name = models.CharField(max_length = 50, unique=True)
-    def __str__(self):
-        return self.resource_name
-
-
-class Permission(models.Model):
-    action = models.ForeignKey(Action, on_delete=models.CASCADE)
-    resource = models.ForeignKey(Resource, on_delete=models.CASCADE)
-    def __str__(self):
-        return f"{self.action} на {self.resource}"
-
 class Role(models.Model):
-    role_name = models.CharField(max_length = 50, unique=True)
-    permissions = models.ManyToManyField(Permission)
+    role_name = models.CharField(max_length=50, unique=True) 
     def __str__(self):
-            return self.role_name
+        return self.role_name
+    
+class AccessRoleRule(models.Model):
+    role = models.ForeignKey(Role, on_delete=models.CASCADE, related_name='rules')
+    element_name = models.CharField(max_length=100)
+
+    read_permission = models.BooleanField(default=False)  
+    create_permission = models.BooleanField(default=False) 
+    update_permission = models.BooleanField(default=False) 
+    delete_permission = models.BooleanField(default=False) 
+
+    read_all_permission = models.BooleanField(default=False)   
+    update_all_permission = models.BooleanField(default=False) 
+    delete_all_permission = models.BooleanField(default=False) 
+
+    def __str__(self):
+        return f"Правила роли {self.role.role_name} для сущности {self.element_name}"
+
 
 class CustomUserManager(BaseUserManager):
     def create_user(self, email, password=None, **extra_fields):
@@ -31,7 +31,10 @@ class CustomUserManager(BaseUserManager):
             raise ValueError('Email обязателен для заполнения')
         email = self.normalize_email(email)
         user = self.model(email=email, **extra_fields)
-        user.set_password(password)
+
+        if password:
+            user.set_password(password)
+
         user.save(using=self._db)
         return user
 
@@ -48,19 +51,24 @@ class CustomUser(AbstractBaseUser):
     is_active = models.BooleanField(default=True) 
     is_staff = models.BooleanField(default=False)
 
-    roles = models.ManyToManyField(Role, blank=True)
+    role = models.ForeignKey(Role, on_delete=models.SET_NULL, null=True, blank=True)
 
     objects = CustomUserManager()
 
     USERNAME_FIELD = 'email' 
     REQUIRED_FIELDS = ['first_name', 'last_name'] 
 
+    def set_password(self, raw_password):
+        password_bytes = raw_password.encode('utf-8')
+        salt = bcrypt.gensalt()
+        hashed_password = bcrypt.hashpw(password_bytes, salt)
+        self.password = hashed_password.decode('utf-8')
+
+    def check_password(self, raw_password):
+        password_bytes = raw_password.encode('utf-8')
+        hashed_bytes = self.password.encode('utf-8')   
+        return bcrypt.checkpw(password_bytes, hashed_bytes) 
+
 
     def __str__(self):
         return self.email
-
-    def has_perm(self, perm, obj=None):
-        return self.is_staff
-
-    def has_module_perms(self, app_label):
-        return self.is_staff

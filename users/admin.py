@@ -1,9 +1,7 @@
 from django.contrib import admin
 
-from .models import Action, Resource, Permission, Role, CustomUser
+from .models import Role, AccessRoleRule, CustomUser
 
-admin.site.register(Action)
-admin.site.register(Resource)
-admin.site.register(Permission)
 admin.site.register(Role)
+admin.site.register(AccessRoleRule)
 admin.site.register(CustomUser)
